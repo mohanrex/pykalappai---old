@@ -15,11 +15,11 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
-    <widget class="QStackedWidget" name="stackedWidget">
+    <widget class="QStackedWidget" name="stacked_widget">
      <property name="currentIndex">
       <number>1</number>
      </property>
-     <widget class="QWidget" name="page">
+     <widget class="QWidget" name="settings_page">
       <layout class="QHBoxLayout" name="horizontalLayout_7">
        <item>
         <layout class="QVBoxLayout" name="verticalLayout">
@@ -72,7 +72,7 @@
                <string>Add New</string>
               </property>
               <property name="icon">
-               <iconset resource="../resources/ekalappai.qrc">
+               <iconset resource="../../ekalappai/pykalappai/resources/ekalappai.qrc">
                 <normaloff>:/icon/add_file_icon</normaloff>
                 <normalon>:/icon/add_file_icon</normalon>:/icon/add_file_icon</iconset>
               </property>
@@ -198,7 +198,7 @@
        </item>
       </layout>
      </widget>
-     <widget class="QWidget" name="page_2">
+     <widget class="QWidget" name="keyboard_add_page">
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
         <widget class="QGroupBox" name="groupBox_4">
@@ -375,7 +375,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../resources/ekalappai.qrc"/>
+  <include location="../../ekalappai/pykalappai/resources/ekalappai.qrc"/>
  </resources>
  <connections/>
 </ui>
