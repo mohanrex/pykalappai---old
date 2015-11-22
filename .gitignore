@@ -58,3 +58,6 @@ target/
 
 # PyCharm files:
 .idea/
+
+# Database file:
+ekalappai.db
