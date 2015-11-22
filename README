@@ -1,5 +1,4 @@
-﻿##PyKalappai - Keyboard Manager (Development Stage)
-
+##PyKalappai - Keyboard Manager (Development Stage)
 
 Aim of this project is to create an opensource keyboard manager to type non-english languages.
 eKalappai uses popular scim-table format for handling the keyboards. Its an improved version of ekalappai.
