@@ -9,5 +9,7 @@
     <file alias="add_file_icon">images/file_add.png</file>
     <file alias="browse_icon">images/browse.png</file>
     <file alias="logo">images/ekalappai_icon.ico</file>
+    <file alias="off_logo">images/ekalappai_off_icon.ico</file>
+    <file alias="on_logo">images/ekalappai_on_icon.png</file>
   </qresource>
 </RCC>

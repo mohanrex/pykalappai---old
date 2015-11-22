@@ -1,12 +1,17 @@
-from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu
+from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp
 from PyQt5.QtGui import QPixmap
 from view import dialog_ui
 from database import DatabaseManager
+from EkEngine import Engine
+
+import win32api
+import win32con
 
 
 class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def __init__(self):
         QDialog.__init__(self)
+        self.engine = Engine("tables/Tamil-bamini.txt.in")
         self.minimize_action = QAction("Minimize", self)
         self.maximize_action = QAction("Maximize", self)
         self.settings_action = QAction("Settings", self)
@@ -15,6 +20,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.tray_icon_menu = QMenu(self)
         self.tray_icon = QSystemTrayIcon(self)
         self.setupUi(self)
+        self.icon = QIcon(QPixmap(":icon/off_logo"))
         self.construct_tray_icon()
         self.signal_connectors()
         self.database = DatabaseManager()
@@ -22,7 +28,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.populate_modifier_cbox()
 
     def construct_tray_icon(self):
-        self.tray_icon.setIcon(QIcon(QPixmap(":icon/logo")))
+        self.tray_icon.setIcon(self.icon)
         self.tray_icon_menu.addAction(self.settings_action)
         self.tray_icon_menu.addSeparator()
         self.tray_icon_menu.addAction(self.about_action)
@@ -45,7 +51,8 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
 
     def quit(self):
         self.engine.un_hook()
-        exit(0)
+        win32api.PostThreadMessage(win32api.GetCurrentThreadId(), win32con.WM_QUIT, 0, 0)
+        self.exit(0)
 
     def show_setting(self):
         self.stacked_widget.setCurrentIndex(0)
@@ -82,3 +89,95 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def save_shortcut_key(self):
         self.database.set_shortcut_key(self.shortcut_key_cbox.currentData())
         self.shortcut_key = self.database.get_shortcut_key()
+        self.register_shortcut_listener()
+
+    def register_shortcut_listener(self):
+        self.engine.event_queue.remove_all()
+        if self.shortcut_key.parent.name == "NONE":
+            self.engine.event_queue.register_event(
+                [
+                    [self.shortcut_key.name],
+                    self.icon_activated,
+                    QSystemTrayIcon.Trigger
+                ]
+            )
+        elif self.shortcut_key.parent.name == "CTRL":
+            self.engine.event_queue.register_event(
+                [
+                    ['Lcontrol', self.shortcut_key.name],
+                    self.icon_activated,
+                    QSystemTrayIcon.Trigger
+                ]
+            )
+            self.engine.event_queue.register_event(
+                [
+                    ['Rcontrol', self.shortcut_key.name],
+                    self.icon_activated,
+                    QSystemTrayIcon.Trigger
+                ]
+            )
+        elif self.shortcut_key.parent.name == "ALT":
+            self.engine.event_queue.register_event(
+                [
+                    ['LMenu', self.shortcut_key.name],
+                    self.icon_activated,
+                    QSystemTrayIcon.Trigger
+                ]
+            )
+            self.engine.event_queue.register_event(
+                [
+                    ['RMenu', self.shortcut_key.name],
+                    self.icon_activated,
+                    QSystemTrayIcon.Trigger
+                ]
+            )
+        return True
+
+    def change_keyboard(self, index):
+        if int(index) != 0:
+            self.engine.initialize()
+            self.engine.conv_state = True
+        else:
+            self.engine.conv_state = False
+
+    def icon_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            pass
+        elif reason == QSystemTrayIcon.Trigger:
+            if self.engine.conv_state:
+                self.change_keyboard(0)
+                self.show_on_status()
+            else:
+                self.change_keyboard(1)
+                self.show_off_status()
+        elif reason == QSystemTrayIcon.MiddleClick:
+            pass
+        else:
+            pass
+
+    def show_on_status(self):
+        self.icon = QIcon(QPixmap(":icon/off_logo"))
+        self.change_icons()
+
+    def show_off_status(self):
+        self.icon = QIcon(QPixmap(":icon/on_logo"))
+        self.change_icons()
+
+    def change_icons(self):
+        self.tray_icon.setIcon(self.icon)
+        self.setWindowIcon(self.icon)
+        # TODO : Need to implement this method with current keyboard name
+        self.tray_icon.setToolTip("Test")
+        self.show_tray_message()
+
+    def show_tray_message(self):
+        if self.engine.conv_state:
+            message = "Ekalappai is Switched ON"
+        else:
+            message = "Ekalappai is Switched OFF"
+        self.tray_icon.showMessage(
+            qApp.applicationName() + " " + qApp.applicationVersion(),
+            message,
+            QSystemTrayIcon.MessageIcon(0),
+            100
+        )

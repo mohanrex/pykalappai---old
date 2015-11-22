@@ -37,6 +37,7 @@ class Main:
         splashScreen.hide()
         QApplication.setQuitOnLastWindowClosed(False)
         ekWindow = EKWindow()
+        ekWindow.engine.start()
         sys.exit(app.exec_())
 
 
