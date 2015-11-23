@@ -90,13 +90,23 @@ class DatabaseManager:
     @staticmethod
     def get_shortcut_key():
         shortcut_key, created = GeneralSetting.get_or_create(name="shortcut_key", defaults={'value1': 4})
-        print(shortcut_key.value1)
         modifier = ShortcutKey.alias()
         shortcut_key_model = (ShortcutKey
                               .select(ShortcutKey, modifier)
                               .join(modifier, on=(ShortcutKey.parent == modifier.id))
                               .where(ShortcutKey.id == shortcut_key.value1)).first()
         return shortcut_key_model
+
+    @staticmethod
+    def set_current_state(state):
+        current_state = GeneralSetting.get(name="current_state")
+        current_state.value1 = str(state)
+        current_state.save()
+
+    @staticmethod
+    def get_current_state():
+        current_state, created = GeneralSetting.get_or_create(name="current_state", defaults={'value1': "False"})
+        return current_state.value1
 
     def init_tables(self):
         with self.db.atomic():

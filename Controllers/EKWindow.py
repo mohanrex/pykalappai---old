@@ -1,4 +1,4 @@
-from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp
+from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp, QFileDialog
 from PyQt5.QtGui import QPixmap
 from view import dialog_ui
 from database import DatabaseManager
@@ -26,6 +26,12 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.database = DatabaseManager()
         self.shortcut_key = self.database.get_shortcut_key()
         self.populate_modifier_cbox()
+        if self.database.get_current_state() == "True":
+            self.engine.conv_state = False
+        else:
+            self.engine.conv_state = True
+        self.icon_activated(QSystemTrayIcon.Trigger)
+        self.file_path_tview.setEnabled(False)
 
     def construct_tray_icon(self):
         self.tray_icon.setIcon(self.icon)
@@ -45,6 +51,14 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.back_button.clicked.connect(self.change_dialog_index)
         self.modifier_cbox.currentIndexChanged.connect(self.populate_shortcut_key)
         self.shortcut_key_cbox.currentIndexChanged.connect(self.save_shortcut_key)
+        self.browse_button.clicked.connect(self.open_file_dialog)
+
+    def open_file_dialog(self):
+        file_dialog = QFileDialog()
+        self.file_path_tview.setText(QFileDialog.getOpenFileName(file_dialog,
+                                                                 str("Open Image"),
+                                                                 "",
+                                                                 str("Scim Tables (*.in *.txt)"))[0])
 
     def show_about(self):
         pass
@@ -133,41 +147,37 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
             )
         return True
 
-    def change_keyboard(self, index):
-        if int(index) != 0:
-            self.engine.initialize()
-            self.engine.conv_state = True
+    def change_status(self):
+        self.engine.conv_state = not self.engine.conv_state
+        self.database.set_current_state(self.engine.conv_state)
+        if self.engine.conv_state:
+            self.show_on_status()
         else:
-            self.engine.conv_state = False
+            self.show_off_status()
 
     def icon_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             pass
         elif reason == QSystemTrayIcon.Trigger:
-            if self.engine.conv_state:
-                self.change_keyboard(0)
-                self.show_on_status()
-            else:
-                self.change_keyboard(1)
-                self.show_off_status()
+            self.change_status()
         elif reason == QSystemTrayIcon.MiddleClick:
             pass
         else:
             pass
 
     def show_on_status(self):
-        self.icon = QIcon(QPixmap(":icon/off_logo"))
+        self.icon = QIcon(QPixmap(":icon/on_logo"))
         self.change_icons()
 
     def show_off_status(self):
-        self.icon = QIcon(QPixmap(":icon/on_logo"))
+        self.icon = QIcon(QPixmap(":icon/off_logo"))
         self.change_icons()
 
     def change_icons(self):
         self.tray_icon.setIcon(self.icon)
         self.setWindowIcon(self.icon)
         # TODO : Need to implement this method with current keyboard name
-        self.tray_icon.setToolTip("Test")
+        self.tray_icon.setToolTip("Keyboard Name")
         self.show_tray_message()
 
     def show_tray_message(self):
