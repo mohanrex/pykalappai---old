@@ -52,13 +52,32 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.modifier_cbox.currentIndexChanged.connect(self.populate_shortcut_key)
         self.shortcut_key_cbox.currentIndexChanged.connect(self.save_shortcut_key)
         self.browse_button.clicked.connect(self.open_file_dialog)
+        self.add_button.clicked.connect(self.save_file)
 
     def open_file_dialog(self):
         file_dialog = QFileDialog()
         self.file_path_tview.setText(QFileDialog.getOpenFileName(file_dialog,
-                                                                 str("Open Image"),
+                                                                 str("Choose  a SCIM Table"),
                                                                  "",
                                                                  str("Scim Tables (*.in *.txt)"))[0])
+
+    def validate(self):
+        try:
+            with open(str(self.file_path_tview.text())) as open_file:
+                data = open_file.read()
+                if "SCIM_Generic_Table_Phrase_Library_TEXT" in data:
+                    return True
+            return False
+        except:
+            return False
+
+    def save_file(self):
+        filepath = str(self.file_path_tview.text())
+        with open(filepath) as search:
+            for line in search:
+                line = line.rstrip()  # remove '\n' at end of line
+                if "NAME" in line:
+                    name = line
 
     def show_about(self):
         pass
