@@ -108,6 +108,14 @@ class DatabaseManager:
         current_state, created = GeneralSetting.get_or_create(name="current_state", defaults={'value1': "False"})
         return current_state.value1
 
+    @staticmethod
+    def add_keyboard(keyboard_name, file_path):
+        LanguageSetting.create(language_name=keyboard_name, file_path=file_path)
+
+    @staticmethod
+    def get_keyboard(keyboard_name):
+        return LanguageSetting.select().where(LanguageSetting.language_name == keyboard_name)
+
     def init_tables(self):
         with self.db.atomic():
             ShortcutKey.insert_many(self.init_data).execute()

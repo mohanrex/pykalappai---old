@@ -1,4 +1,4 @@
-from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp, QFileDialog
+from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp, QFileDialog, QFileInfo
 from PyQt5.QtGui import QPixmap
 from view import dialog_ui
 from database import DatabaseManager
@@ -6,11 +6,16 @@ from EkEngine import Engine
 
 import win32api
 import win32con
+import os
+import shutil
+import time
 
 
 class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def __init__(self):
         QDialog.__init__(self)
+        self.app_path = os.getenv("APPDATA") + "\\" + qApp.applicationName()
+        self.table_path = self.app_path + "\\tables"
         self.engine = Engine("tables/Tamil-bamini.txt.in")
         self.minimize_action = QAction("Minimize", self)
         self.maximize_action = QAction("Maximize", self)
@@ -32,6 +37,14 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
             self.engine.conv_state = True
         self.icon_activated(QSystemTrayIcon.Trigger)
         self.file_path_tview.setEnabled(False)
+        self.check_app_path()
+
+    def check_app_path(self):
+        if not os.path.exists(self.app_path):
+            os.makedirs(self.app_path)
+        if not os.path.exists(self.table_path):
+            os.makedirs(self.table_path)
+        return
 
     def construct_tray_icon(self):
         self.tray_icon.setIcon(self.icon)
@@ -53,6 +66,11 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.shortcut_key_cbox.currentIndexChanged.connect(self.save_shortcut_key)
         self.browse_button.clicked.connect(self.open_file_dialog)
         self.add_button.clicked.connect(self.save_file)
+        self.clear_button.clicked.connect(self.reset_form)
+
+    def reset_form(self):
+        self.clear_file_error()
+        self.file_path_tview.setText("")
 
     def open_file_dialog(self):
         file_dialog = QFileDialog()
@@ -63,21 +81,48 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
 
     def validate(self):
         try:
-            with open(str(self.file_path_tview.text())) as open_file:
-                data = open_file.read()
-                if "SCIM_Generic_Table_Phrase_Library_TEXT" in data:
-                    return True
+            with open(str(self.file_path_tview.text()), encoding="utf-8") as search:
+                for line in search:
+                    line = line.rstrip()  # remove '\n' at end of line
+                    if "SCIM_Generic_Table_Phrase_Library_TEXT" in line:
+                        return True
+            self.show_file_error("Invalid SCIM Table file")
             return False
         except:
+            self.show_file_error("Some error occurred")
             return False
 
     def save_file(self):
-        filepath = str(self.file_path_tview.text())
-        with open(filepath) as search:
-            for line in search:
-                line = line.rstrip()  # remove '\n' at end of line
-                if "NAME" in line:
-                    name = line
+        if self.validate():
+            self.clear_file_error()
+            filepath = str(self.file_path_tview.text())
+            fileinfo = QFileInfo(filepath)
+            filename = str(int(time.time())) + "_" + fileinfo.fileName()
+            keyboard_name = "Unknown"
+            with open(filepath, encoding="utf-8") as search:
+                for line in search:
+                    line = line.rstrip()  # remove '\n' at end of line
+                    if "NAME" in line:
+                        name_line = line
+                        name_list = name_line.split('=', 1)
+                        if len(name_list) > 0:
+                            keyboard_name = name_list[1]
+            old_name = self.database.get_keyboard(keyboard_name)
+            if keyboard_name == "Unknown":
+                self.show_file_error("This keyboard already exists")
+            elif old_name:
+                self.show_file_error("SCIM table name header not found")
+            else:
+                shutil.copyfile(filepath, self.table_path + "\\" + filename)
+                print(keyboard_name)
+                self.database.add_keyboard(keyboard_name, filename)
+                self.file_path_tview.setText("")
+
+    def show_file_error(self, message):
+        self.error_msg.setText(message)
+
+    def clear_file_error(self):
+        self.error_msg.setText("")
 
     def show_about(self):
         pass
@@ -94,6 +139,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def change_dialog_index(self):
         current_index = self.stacked_widget.currentIndex()
         if current_index == 0:
+            self.reset_form()
             self.stacked_widget.setCurrentIndex(1)
         else:
             self.stacked_widget.setCurrentIndex(0)
