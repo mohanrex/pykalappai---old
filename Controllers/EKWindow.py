@@ -1,5 +1,5 @@
 from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, \
-    qApp, QFileDialog, QFileInfo, QTableWidgetItem, QHeaderView, QAbstractItemView, QTableView, QPushButton
+    qApp, QFileDialog, QFileInfo, QTableWidgetItem, QAbstractItemView, QTableView, QSettings
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 from view import dialog_ui
@@ -17,6 +17,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def __init__(self):
         QDialog.__init__(self)
         self.app_path = os.getenv("APPDATA") + "\\" + qApp.applicationName()
+        self.registrySettings = QSettings("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
         self.table_path = self.app_path + "\\tables"
         self.engine = Engine("tables/Tamil-bamini.txt.in")
         self.minimize_action = QAction("Minimize", self)
@@ -41,6 +42,11 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.file_path_tview.setEnabled(False)
         self.check_app_path()
         self.update_table(True)
+        self.init_combobox()
+        if self.registrySettings.contains(qApp.applicationName()):
+            self.start_windows_check.setChecked(True)
+        else:
+            self.start_windows_check.setChecked(False)
 
     def check_app_path(self):
         if not os.path.exists(self.app_path):
@@ -71,6 +77,8 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.add_button.clicked.connect(self.save_file)
         self.clear_button.clicked.connect(self.reset_form)
         self.remove_button.clicked.connect(self.remove_keyboard)
+        self.keyboard_cbox.currentIndexChanged.connect(self.save_current_keyboard)
+        self.start_windows_check.stateChanged.connect(self.change_start_windows)
 
     def reset_form(self):
         self.clear_file_error()
@@ -113,9 +121,9 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
                             keyboard_name = name_list[1]
             old_name = self.database.get_keyboard(keyboard_name)
             if keyboard_name == "Unknown":
-                self.show_file_error("This keyboard already exists")
-            elif old_name:
                 self.show_file_error("SCIM table name header not found")
+            elif old_name:
+                self.show_file_error("This keyboard already exists")
             else:
                 shutil.copyfile(filepath, self.table_path + "\\" + filename)
                 print(keyboard_name)
@@ -221,6 +229,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.database.set_current_state(self.engine.conv_state)
         if self.engine.conv_state:
             self.show_on_status()
+            self.load_keyboard()
         else:
             self.show_off_status()
 
@@ -294,3 +303,41 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
             if self.keyboard_table.item(row, 0).checkState() == Qt.Checked:
                 self.database.remove_keyboard(int(self.keyboard_table.item(row, 2).text()))
         self.update_table()
+
+    def init_combobox(self):
+        self.keyboard_cbox.blockSignals(True)
+        self.keyboard_cbox.clear()
+        current_keyboard = self.database.get_current_keyboard()
+        index = 1
+        self.keyboard_cbox.addItem("No Keyboard", 0)
+        for keyboard in self.database.get_all_keyboards()[1]:
+            self.keyboard_cbox.addItem(keyboard.language_name, keyboard.id)
+            if int(current_keyboard) == keyboard.id:
+                self.keyboard_cbox.setCurrentText(keyboard.language_name)
+                self.keyboard_cbox.setCurrentIndex(index)
+            index += 1
+        self.keyboard_cbox.blockSignals(False)
+
+    def save_current_keyboard(self):
+        if int(self.keyboard_cbox.currentData()) != 0:
+            self.database.set_current_keyboard(self.keyboard_cbox.currentData())
+            self.engine.conv_state = True
+            self.database.set_current_state(self.engine.conv_state)
+            self.show_on_status()
+            self.load_keyboard()
+        else:
+            self.engine.conv_state = False
+            self.database.set_current_state(self.engine.conv_state)
+            self.show_off_status()
+
+    def load_keyboard(self):
+        self.engine.file_name = self.table_path +\
+                                "\\" + \
+                                self.database.get_keyboard_path(self.database.get_current_keyboard())
+        self.engine.initialize()
+
+    def change_start_windows(self):
+        if self.start_windows_check.isChecked():
+            self.registrySettings.setValue(qApp.applicationName(), qApp.applicationFilePath())
+        else:
+            self.registrySettings.remove(qApp.applicationName())

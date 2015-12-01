@@ -109,6 +109,17 @@ class DatabaseManager:
         return current_state.value1
 
     @staticmethod
+    def set_current_keyboard(idx):
+        current_state = GeneralSetting.get(name="current_keyboard")
+        current_state.value1 = str(idx)
+        current_state.save()
+
+    @staticmethod
+    def get_current_keyboard():
+        current_state, created = GeneralSetting.get_or_create(name="current_keyboard", defaults={'value1': "1"})
+        return current_state.value1
+
+    @staticmethod
     def add_keyboard(keyboard_name, file_path):
         LanguageSetting.create(language_name=keyboard_name, file_path=file_path)
 
@@ -125,6 +136,10 @@ class DatabaseManager:
         query = LanguageSetting.delete().where(LanguageSetting.id == idx)
         query.execute()
         return
+
+    @staticmethod
+    def get_keyboard_path(keyboard_id):
+        return LanguageSetting.get(LanguageSetting.id == keyboard_id).file_path
 
     def init_tables(self):
         with self.db.atomic():
