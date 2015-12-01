@@ -1,5 +1,7 @@
-from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, qApp, QFileDialog, QFileInfo
+from PyQt5.Qt import QSystemTrayIcon, QIcon, QAction, QDialog, QMenu, \
+    qApp, QFileDialog, QFileInfo, QTableWidgetItem, QHeaderView, QAbstractItemView, QTableView, QPushButton
 from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt
 from view import dialog_ui
 from database import DatabaseManager
 from EkEngine import Engine
@@ -38,6 +40,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.icon_activated(QSystemTrayIcon.Trigger)
         self.file_path_tview.setEnabled(False)
         self.check_app_path()
+        self.update_table(True)
 
     def check_app_path(self):
         if not os.path.exists(self.app_path):
@@ -67,6 +70,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.browse_button.clicked.connect(self.open_file_dialog)
         self.add_button.clicked.connect(self.save_file)
         self.clear_button.clicked.connect(self.reset_form)
+        self.remove_button.clicked.connect(self.remove_keyboard)
 
     def reset_form(self):
         self.clear_file_error()
@@ -256,3 +260,37 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
             QSystemTrayIcon.MessageIcon(0),
             100
         )
+
+    def update_table(self, init=False):
+        if init:
+            self.init_table()
+        records = self.database.get_all_keyboards()
+        self.keyboard_table.setRowCount(records[0])
+        for idx, record in enumerate(records[1]):
+            self.keyboard_table.setItem(idx, 1, QTableWidgetItem(record.language_name))
+            self.keyboard_table.setItem(idx, 2, QTableWidgetItem(str(record.id)))
+            chk_box = QTableWidgetItem()
+            chk_box.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            chk_box.setCheckState(Qt.Unchecked)
+            self.keyboard_table.setItem(idx, 0, chk_box)
+        self.keyboard_table.resizeRowsToContents()
+        return
+
+    """
+        Initialize the grid with the default options
+    """
+    def init_table(self):
+        self.keyboard_table.setColumnCount(3)
+        self.keyboard_table.setHorizontalHeaderLabels(["", "Name", "Id"])
+        self.keyboard_table.setColumnHidden(2, True)
+        self.keyboard_table.setColumnWidth(0, 30)
+        self.keyboard_table.horizontalHeader().setStretchLastSection(True)
+        self.keyboard_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.keyboard_table.setSelectionBehavior(QTableView.SelectRows)
+        self.keyboard_table.setSelectionMode(QAbstractItemView.SingleSelection)
+
+    def remove_keyboard(self):
+        for row in range(0, self.keyboard_table.rowCount()):
+            if self.keyboard_table.item(row, 0).checkState() == Qt.Checked:
+                self.database.remove_keyboard(int(self.keyboard_table.item(row, 2).text()))
+        self.update_table()

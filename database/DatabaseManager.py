@@ -116,6 +116,16 @@ class DatabaseManager:
     def get_keyboard(keyboard_name):
         return LanguageSetting.select().where(LanguageSetting.language_name == keyboard_name)
 
+    @staticmethod
+    def get_all_keyboards():
+        return [LanguageSetting.select().count(), LanguageSetting.select()]
+
+    @staticmethod
+    def remove_keyboard(idx):
+        query = LanguageSetting.delete().where(LanguageSetting.id == idx)
+        query.execute()
+        return
+
     def init_tables(self):
         with self.db.atomic():
             ShortcutKey.insert_many(self.init_data).execute()
