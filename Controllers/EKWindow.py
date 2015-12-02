@@ -19,7 +19,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.app_path = os.getenv("APPDATA") + "\\" + qApp.applicationName()
         self.registrySettings = QSettings("HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run", QSettings.NativeFormat)
         self.table_path = self.app_path + "\\tables"
-        self.engine = Engine("tables/Tamil-bamini.txt.in")
+        self.engine = Engine()
         self.minimize_action = QAction("Minimize", self)
         self.maximize_action = QAction("Maximize", self)
         self.settings_action = QAction("Settings", self)
@@ -119,16 +119,15 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
                         name_list = name_line.split('=', 1)
                         if len(name_list) > 0:
                             keyboard_name = name_list[1]
-            old_name = self.database.get_keyboard(keyboard_name)
             if keyboard_name == "Unknown":
                 self.show_file_error("SCIM table name header not found")
-            elif old_name:
-                self.show_file_error("This keyboard already exists")
+            elif DatabaseManager.check_keyboard_exist(keyboard_name):
+                self.show_file_error("Keyboard already exists")
             else:
                 shutil.copyfile(filepath, self.table_path + "\\" + filename)
-                print(keyboard_name)
-                self.database.add_keyboard(keyboard_name, filename)
+                DatabaseManager.add_keyboard(keyboard_name, filename)
                 self.file_path_tview.setText("")
+                self.update_table()
 
     def show_file_error(self, message):
         self.error_msg.setText(message)
@@ -152,13 +151,15 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         current_index = self.stacked_widget.currentIndex()
         if current_index == 0:
             self.reset_form()
+            self.init_table()
             self.stacked_widget.setCurrentIndex(1)
         else:
+            self.init_combobox()
             self.stacked_widget.setCurrentIndex(0)
 
     def populate_modifier_cbox(self):
         self.modifier_cbox.blockSignals(True)
-        modifiers = self.database.get_keys()
+        modifiers = DatabaseManager.get_keys()
         for modifier in modifiers:
             self.modifier_cbox.addItem(modifier.name, modifier.id)
             if modifier.id == self.shortcut_key.parent.id:
@@ -169,7 +170,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def populate_shortcut_key(self):
         self.shortcut_key_cbox.blockSignals(True)
         self.shortcut_key_cbox.clear()
-        keys = self.database.get_keys(self.modifier_cbox.currentData())
+        keys = DatabaseManager.get_keys(self.modifier_cbox.currentData())
         for key in keys:
             self.shortcut_key_cbox.addItem(key.name, key.id)
             if key.id == self.shortcut_key.id:
@@ -178,8 +179,8 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.save_shortcut_key()
 
     def save_shortcut_key(self):
-        self.database.set_shortcut_key(self.shortcut_key_cbox.currentData())
-        self.shortcut_key = self.database.get_shortcut_key()
+        DatabaseManager.set_shortcut_key(self.shortcut_key_cbox.currentData())
+        self.shortcut_key = DatabaseManager.get_shortcut_key()
         self.register_shortcut_listener()
 
     def register_shortcut_listener(self):
@@ -226,7 +227,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
 
     def change_status(self):
         self.engine.conv_state = not self.engine.conv_state
-        self.database.set_current_state(self.engine.conv_state)
+        DatabaseManager.set_current_state(self.engine.conv_state)
         if self.engine.conv_state:
             self.show_on_status()
             self.load_keyboard()
@@ -273,7 +274,7 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
     def update_table(self, init=False):
         if init:
             self.init_table()
-        records = self.database.get_all_keyboards()
+        records = DatabaseManager.get_all_keyboards()
         self.keyboard_table.setRowCount(records[0])
         for idx, record in enumerate(records[1]):
             self.keyboard_table.setItem(idx, 1, QTableWidgetItem(record.language_name))
@@ -300,17 +301,17 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
 
     def remove_keyboard(self):
         for row in range(0, self.keyboard_table.rowCount()):
-            if self.keyboard_table.item(row, 0).checkState() == Qt.Checked:
-                self.database.remove_keyboard(int(self.keyboard_table.item(row, 2).text()))
+            if self.keyboard_table.item(row, 0).checkState() == Qt.Checked and \
+                            DatabaseManager.get_current_keyboard() != self.keyboard_table.item(row, 2).text():
+                DatabaseManager.remove_keyboard(int(self.keyboard_table.item(row, 2).text()))
         self.update_table()
 
     def init_combobox(self):
         self.keyboard_cbox.blockSignals(True)
         self.keyboard_cbox.clear()
-        current_keyboard = self.database.get_current_keyboard()
-        index = 1
-        self.keyboard_cbox.addItem("No Keyboard", 0)
-        for keyboard in self.database.get_all_keyboards()[1]:
+        current_keyboard = DatabaseManager.get_current_keyboard()
+        index = 0
+        for keyboard in DatabaseManager.get_all_keyboards()[1]:
             self.keyboard_cbox.addItem(keyboard.language_name, keyboard.id)
             if int(current_keyboard) == keyboard.id:
                 self.keyboard_cbox.setCurrentText(keyboard.language_name)
@@ -319,21 +320,16 @@ class EKWindow(QDialog, dialog_ui.Ui_Dialog):
         self.keyboard_cbox.blockSignals(False)
 
     def save_current_keyboard(self):
-        if int(self.keyboard_cbox.currentData()) != 0:
-            self.database.set_current_keyboard(self.keyboard_cbox.currentData())
-            self.engine.conv_state = True
-            self.database.set_current_state(self.engine.conv_state)
-            self.show_on_status()
-            self.load_keyboard()
-        else:
-            self.engine.conv_state = False
-            self.database.set_current_state(self.engine.conv_state)
-            self.show_off_status()
+        DatabaseManager.set_current_keyboard(self.keyboard_cbox.currentData())
+        self.engine.conv_state = True
+        DatabaseManager.set_current_state(self.engine.conv_state)
+        self.show_on_status()
+        self.load_keyboard()
 
     def load_keyboard(self):
         self.engine.file_name = self.table_path +\
                                 "\\" + \
-                                self.database.get_keyboard_path(self.database.get_current_keyboard())
+                                DatabaseManager.get_keyboard_path(DatabaseManager.get_current_keyboard())
         self.engine.initialize()
 
     def change_start_windows(self):

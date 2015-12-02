@@ -125,7 +125,15 @@ class DatabaseManager:
 
     @staticmethod
     def get_keyboard(keyboard_name):
-        return LanguageSetting.select().where(LanguageSetting.language_name == keyboard_name)
+        return LanguageSetting.select().where(LanguageSetting.language_name == keyboard_name).get()
+
+    @staticmethod
+    def check_keyboard_exist(keyboard_name):
+        query = LanguageSetting.select().where(LanguageSetting.language_name == keyboard_name)
+        if query.exists():
+            return True
+        else:
+            return False
 
     @staticmethod
     def get_all_keyboards():

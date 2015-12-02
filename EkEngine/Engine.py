@@ -1,5 +1,3 @@
-__author__ = 'Manikk'
-
 import pyHook
 import pythoncom
 
@@ -9,7 +7,7 @@ from EkEngine.ScimTableParser import ScimTableParser
 
 
 class Engine(Thread):
-    def __init__(self, filepath):
+    def __init__(self, filepath=""):
         Thread.__init__(self)
         self.file_name = filepath
         self.conv_state = False
